@@ -50,17 +50,22 @@ interface ApiResponse<T = unknown> {
 }
 
 /**
- * Generic POST request to Google Apps Script
+ * Petición GET con parámetros URL hacia Google Apps Script (evita preflight CORS / OPTIONS)
  */
-async function postRequest<T = unknown>(bodyData: Record<string, unknown>): Promise<ApiResponse<T>> {
+async function sendGetRequest<T = unknown>(paramsData: Record<string, unknown>): Promise<ApiResponse<T>> {
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(bodyData),
-    });
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(paramsData)) {
+      if (value !== undefined && value !== null) {
+        if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
+          query.set(key, JSON.stringify(value));
+        } else {
+          query.set(key, String(value));
+        }
+      }
+    }
+
+    const res = await fetch(`${API_URL}?${query.toString()}`);
 
     if (!res.ok) {
       throw new Error(`Error en el servidor: HTTP ${res.status}`);
@@ -76,6 +81,9 @@ async function postRequest<T = unknown>(bodyData: Record<string, unknown>): Prom
     };
   }
 }
+
+// Alias de compatibilidad hacia atrás
+const postRequest = sendGetRequest;
 
 /**
  * Iniciar sesión con credenciales
@@ -149,7 +157,7 @@ export async function addInventory(
     precio: number;
   }
 ) {
-  return postRequest({
+  return sendGetRequest({
     action: 'addInventory',
     token,
     fecha: data.fecha,
@@ -172,7 +180,7 @@ export async function addCashExpense(
     precio: number;
   }
 ) {
-  return postRequest({
+  return sendGetRequest({
     action: 'addCashExpense',
     token,
     fecha: data.fecha,
@@ -195,7 +203,7 @@ export async function addExpired(
     precioVenta: number;
   }
 ) {
-  return postRequest({
+  return sendGetRequest({
     action: 'addExpired',
     token,
     fecha: data.fecha,
@@ -218,7 +226,7 @@ export async function addPurchase(
     precio: number;
   }
 ) {
-  return postRequest({
+  return sendGetRequest({
     action: 'addPurchase',
     token,
     fecha: data.fecha,
@@ -239,7 +247,7 @@ export async function addBonus(
     monto: number;
   }
 ) {
-  return postRequest({
+  return sendGetRequest({
     action: 'addBonus',
     token,
     fecha: data.fecha,
@@ -306,7 +314,7 @@ export async function updateRecord(
   row: number,
   valores: (string | number)[]
 ) {
-  return postRequest({
+  return sendGetRequest({
     action: 'updateRecord',
     token,
     hoja,
@@ -319,7 +327,7 @@ export async function updateRecord(
  * Eliminar registro (requiere rol admin)
  */
 export async function deleteRecord(token: string, hoja: string, row: number) {
-  return postRequest({
+  return sendGetRequest({
     action: 'deleteRecord',
     token,
     hoja,
@@ -335,7 +343,7 @@ export async function changePassword(
   tipo: 'usuario' | 'admin',
   nuevaPassword: string
 ) {
-  return postRequest({
+  return sendGetRequest({
     action: 'changePassword',
     token,
     tipo,
