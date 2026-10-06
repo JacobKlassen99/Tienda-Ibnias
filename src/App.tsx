@@ -106,7 +106,7 @@ export default function App() {
             token={token}
             role={role}
             onSuccessToast={(msg) => addToast('success', 'Operación Completada', msg)}
-            onErrorToast={(msg) => addToast('error', 'Error en Reportes', msg)}
+            onErrorToast={(msg) => addToast('error', 'Error en Registros', msg)}
             onSessionExpired={handleSessionExpired}
             onElevateAdmin={handleElevateAdmin}
           />
@@ -148,7 +148,7 @@ export default function App() {
             }`}
           >
             <BarChart3 className="h-5 w-5" />
-            <span className="text-[11px] mt-0.5">Reportes</span>
+            <span className="text-[11px] mt-0.5">Registros</span>
           </button>
 
           <button

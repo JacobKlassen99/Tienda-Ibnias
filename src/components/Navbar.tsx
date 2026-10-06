@@ -96,7 +96,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <BarChart3 className={`h-4 w-4 ${currentTab === 'reportes' ? 'text-teal-700' : 'text-teal-300'}`} />
-            <span>Reportes</span>
+            <span>Registros</span>
           </button>
 
           <button

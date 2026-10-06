@@ -184,9 +184,9 @@ export const RegisterForms: React.FC<RegisterFormsProps> = ({
       });
 
       if (res.success) {
-        onSuccessToast('Gasto de Caja & Banco guardado correctamente.');
+        onSuccessToast('Gasto Efectivo y Banco guardado correctamente.');
         setLastSaved({
-          form: 'Gastos de Caja & Banco',
+          form: 'Gastos Efectivo y Banco',
           detail: `${cajaProducto} - Bs ${Number(cajaPrecio).toFixed(2)} [${cajaDetalle}]`,
         });
         setCajaProducto('');
@@ -211,8 +211,22 @@ export const RegisterForms: React.FC<RegisterFormsProps> = ({
       onErrorToast('Por favor ingrese el producto vencido.');
       return;
     }
-    if (!vencPrecioCompra || Number(vencPrecioCompra) < 0) {
-      onErrorToast('Por favor ingrese el precio de compra.');
+
+    const cant = Number(vencCantidad);
+    if (isNaN(cant) || cant <= 0) {
+      onErrorToast('La cantidad debe ser un número mayor a 0 (ej. 0.25, 0.5, 1.5).');
+      return;
+    }
+
+    const pCompra = Number(vencPrecioCompra);
+    if (isNaN(pCompra) || pCompra <= 0) {
+      onErrorToast('El precio de compra debe ser un número mayor a 0 (ej. 3.50, 10.25).');
+      return;
+    }
+
+    const pVenta = vencPrecioVenta === '' || vencPrecioVenta === null ? 0 : Number(vencPrecioVenta);
+    if (isNaN(pVenta) || pVenta < 0) {
+      onErrorToast('El precio de venta no puede ser negativo.');
       return;
     }
 
@@ -222,16 +236,16 @@ export const RegisterForms: React.FC<RegisterFormsProps> = ({
       const res = await addExpired(token, {
         fecha: vencFecha,
         producto: vencProducto,
-        cantidad: Number(vencCantidad) || 1,
-        precioCompra: Number(vencPrecioCompra),
-        precioVenta: Number(vencPrecioVenta) || 0,
+        cantidad: cant,
+        precioCompra: pCompra,
+        precioVenta: pVenta,
       });
 
       if (res.success) {
         onSuccessToast('Producto vencido registrado correctamente.');
         setLastSaved({
           form: 'Vencidos',
-          detail: `${vencProducto} (${vencCantidad} u.) - Pérdida: Bs ${vencPerdida.toFixed(2)}`,
+          detail: `${vencProducto} (${cant} u.) - Pérdida: Bs ${vencPerdida.toFixed(2)}`,
         });
         setVencProducto('');
         setVencCantidad(1);
@@ -342,7 +356,7 @@ export const RegisterForms: React.FC<RegisterFormsProps> = ({
 
   const formButtons: { id: RegisterFormType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'inventario', label: 'Retiro de inventario', icon: PackageMinus },
-    { id: 'caja_banco', label: 'Gastos Caja & Banco', icon: Wallet },
+    { id: 'caja_banco', label: 'Gastos Efectivo y Banco', icon: Wallet },
     { id: 'vencidos', label: 'Vencidos', icon: CalendarX },
     { id: 'compra', label: 'Compra / Construcción', icon: Hammer },
     { id: 'bonificaciones', label: 'Bonificaciones', icon: Sparkles },
@@ -627,7 +641,7 @@ export const RegisterForms: React.FC<RegisterFormsProps> = ({
                 </>
               ) : (
                 <>
-                  <span>Guardar Gasto Caja & Banco</span>
+                  <span>Guardar Gastos Efectivo y Banco</span>
                   <ArrowRight className="h-5 w-5" />
                 </>
               )}
@@ -654,16 +668,16 @@ export const RegisterForms: React.FC<RegisterFormsProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Cantidad
+                  Cantidad (admite decimales ej. 0.25, 0.5, 1.5)
                 </label>
                 <input
                   type="number"
-                  inputMode="numeric"
-                  min="1"
+                  inputMode="decimal"
                   step="any"
+                  min="0.0001"
                   value={vencCantidad}
                   onChange={(e) => setVencCantidad(e.target.value)}
-                  placeholder="1"
+                  placeholder="Ej. 0.5, 1, 1.5"
                   required
                   className="w-full h-12 rounded-xl border border-slate-300 bg-slate-50 px-3.5 text-sm font-semibold text-slate-900 focus:bg-white focus:border-teal-600 focus:outline-none"
                 />
@@ -678,7 +692,7 @@ export const RegisterForms: React.FC<RegisterFormsProps> = ({
                 type="text"
                 value={vencProducto}
                 onChange={(e) => setVencProducto(e.target.value)}
-                placeholder="Ej. Leche 1L, Galletas..."
+                placeholder="Ej. Leche 1L, Galletas, Tomate..."
                 required
                 className="w-full h-12 rounded-xl border border-slate-300 bg-slate-50 px-3.5 text-sm font-medium text-slate-900 focus:bg-white focus:border-teal-600 focus:outline-none placeholder:text-slate-400"
               />
@@ -696,8 +710,8 @@ export const RegisterForms: React.FC<RegisterFormsProps> = ({
                   <input
                     type="number"
                     inputMode="decimal"
-                    min="0"
                     step="any"
+                    min="0.0001"
                     value={vencPrecioCompra}
                     onChange={(e) => setVencPrecioCompra(e.target.value)}
                     placeholder="0.00"
@@ -718,8 +732,8 @@ export const RegisterForms: React.FC<RegisterFormsProps> = ({
                   <input
                     type="number"
                     inputMode="decimal"
-                    min="0"
                     step="any"
+                    min="0"
                     value={vencPrecioVenta}
                     onChange={(e) => setVencPrecioVenta(e.target.value)}
                     placeholder="0.00"

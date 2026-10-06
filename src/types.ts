@@ -12,11 +12,34 @@ export interface BackendOptions {
   compra: string[];
 }
 
+export type RegistroOrigen =
+  | 'Inventario'
+  | 'Efectivo y Banco'
+  | 'Vencidos'
+  | 'Compra bienes y Construccion'
+  | 'Bonificaciones';
+
+export interface RegistroItem {
+  id: string;
+  hoja: string;
+  origen: RegistroOrigen;
+  row: number;
+  fecha: string;
+  producto?: string;
+  detalle?: string;
+  cantidad?: number;
+  precio?: number;
+  precioCompra?: number;
+  precioVenta?: number;
+  monto: number;
+  rawValores?: (string | number)[];
+}
+
 export interface GastoRecord {
   fecha: string;
   producto: string;
   detalle: string;
-  origen: 'Inventario' | 'Caja & Banco' | 'Bonificaciones' | string;
+  origen: 'Inventario' | 'Caja & Banco' | 'Efectivo y Banco' | 'Bonificaciones' | string;
   monto: number;
   cantidad?: number;
   precio?: number;
