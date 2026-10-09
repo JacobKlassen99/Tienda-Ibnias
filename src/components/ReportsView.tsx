@@ -72,13 +72,13 @@ function parseRecordDate(fechaStr: string): { year: number; month: number; day: 
       const year = parseInt(parts[0], 10);
       const month = parseInt(parts[1], 10);
       const day = parseInt(parts[2], 10);
-      if (!isNaN(year) && !isNaN(month)) return { year, month, day };
+      if (!isNaN(year) && !isNaN(month)) return { year, month, day: isNaN(day) ? 1 : day };
     } else {
       // DD/MM/YYYY
       const day = parseInt(parts[0], 10);
       const month = parseInt(parts[1], 10);
       const year = parseInt(parts[2], 10);
-      if (!isNaN(year) && !isNaN(month)) return { year, month, day };
+      if (!isNaN(year) && !isNaN(month)) return { year, month, day: isNaN(day) ? 1 : day };
     }
   }
   const d = new Date(fechaStr);
@@ -86,6 +86,19 @@ function parseRecordDate(fechaStr: string): { year: number; month: number; day: 
     return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() };
   }
   return null;
+}
+
+/**
+ * Obtiene la marca de tiempo (timestamp) en milisegundos para comparar y ordenar fechas
+ */
+function getRecordTimestamp(fechaStr: string): number {
+  if (!fechaStr) return 0;
+  const parsed = parseRecordDate(fechaStr);
+  if (parsed) {
+    return new Date(parsed.year, parsed.month - 1, parsed.day || 1).getTime();
+  }
+  const t = new Date(fechaStr).getTime();
+  return isNaN(t) ? 0 : t;
 }
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
@@ -197,9 +210,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     return Array.from(set).sort();
   }, [records, selectedOrigen]);
 
-  // Filtered Records (Origen, Periodo, Detalle, Search)
+  // Filtered & Sorted Records: all categories mixed and sorted by date from newest to oldest
   const filteredRecords = useMemo(() => {
-    return records.filter((r) => {
+    const list = records.filter((r) => {
       // 1. Origen filter
       if (selectedOrigen !== 'todos' && r.origen !== selectedOrigen) {
         return false;
@@ -230,6 +243,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       }
 
       return true;
+    });
+
+    // Ordenar todos los registros mezclados por fecha real, del más reciente al más antiguo
+    return list.sort((a, b) => {
+      const timeA = getRecordTimestamp(a.fecha);
+      const timeB = getRecordTimestamp(b.fecha);
+      if (timeB !== timeA) {
+        return timeB - timeA;
+      }
+      // Si tienen exactamente la misma fecha, desempatar por número de fila descendente
+      return (b.row || 0) - (a.row || 0);
     });
   }, [records, selectedOrigen, periodo, selectedYear, selectedMonth, selectedDetalle, searchQuery]);
 

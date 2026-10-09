@@ -7,6 +7,8 @@ import { ReportsView } from './components/ReportsView';
 import { AdminView } from './components/AdminView';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { PWAUpdateBanner } from './components/PWAUpdateBanner';
+import { usePWAUpdate } from './hooks/usePWAUpdate';
 import { FilePlus2, BarChart3, Settings } from 'lucide-react';
 
 const STORAGE_TOKEN_KEY = 'ibnias_token_v1';
@@ -21,6 +23,9 @@ export default function App() {
   });
   const [activeTab, setActiveTab] = useState<ActiveTab>('registrar');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // PWA Auto Update detection
+  const { showBanner, updating, updateNow, dismissUpdate } = usePWAUpdate();
 
   // Keep localStorage synchronized
   useEffect(() => {
@@ -76,6 +81,12 @@ export default function App() {
         <LoginView onSuccess={handleLoginSuccess} />
         <ToastContainer toasts={toasts} onDismiss={removeToast} />
         <OfflineIndicator />
+        <PWAUpdateBanner
+          show={showBanner}
+          updating={updating}
+          onUpdate={updateNow}
+          onDismiss={dismissUpdate}
+        />
       </>
     );
   }
@@ -168,6 +179,12 @@ export default function App() {
       {/* Global Notifications & Offline status */}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
       <OfflineIndicator />
+      <PWAUpdateBanner
+        show={showBanner}
+        updating={updating}
+        onUpdate={updateNow}
+        onDismiss={dismissUpdate}
+      />
     </div>
   );
 }
