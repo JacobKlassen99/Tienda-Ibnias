@@ -66,7 +66,7 @@ export function parseSheetRow(
   if (!valores || valores.length === 0) return null;
   const col0 = String(valores[0] || '').trim();
   // Filtrar fila de encabezados si viene presente en los datos
-  if (col0.toUpperCase() === 'FECHA' || col0 === '31/12/1969') return null;
+  if (col0.toUpperCase() === 'FECHA' || col0 === '31/12/1969' || col0.toUpperCase() === 'TOTAL' || col0.toUpperCase() === 'SUMA') return null;
 
   const fecha = col0;
   let producto = '';
@@ -78,42 +78,89 @@ export function parseSheetRow(
   let monto = 0;
 
   if (hoja === 'Retiro de inventario') {
-    // [fecha, cantidad, producto, detalle, precioUnitario, total]
-    cantidad = Number(valores[1]) || 0;
-    producto = String(valores[2] || '').trim();
+    const val1 = valores[1];
+    const val2 = valores[2];
+    const isVal1Num = val1 !== undefined && val1 !== '' && !isNaN(Number(val1));
+    const isVal2Num = val2 !== undefined && val2 !== '' && !isNaN(Number(val2));
+
+    if (isVal1Num && !isVal2Num) {
+      cantidad = Number(val1) || 1;
+      producto = String(val2 || '').trim();
+    } else if (!isVal1Num && isVal2Num) {
+      producto = String(val1 || '').trim();
+      cantidad = Number(val2) || 1;
+    } else {
+      cantidad = Number(val1) || 1;
+      producto = String(val2 || '').trim();
+    }
     detalle = String(valores[3] || '').trim();
     precio = Number(valores[4]) || 0;
-    monto = valores[5] !== undefined && valores[5] !== '' ? Number(valores[5]) || 0 : cantidad * precio;
-  } else if (hoja === 'Gastos de Caja y Banco') {
-    // [fecha, producto, detalle, precio]
+    monto = valores[5] !== undefined && valores[5] !== '' && !isNaN(Number(valores[5])) ? Number(valores[5]) || 0 : cantidad * precio;
+  } else if (hoja === 'Gastos de Caja y Banco' || hoja === 'Compra bienes y Construccion') {
     producto = String(valores[1] || '').trim();
     detalle = String(valores[2] || '').trim();
-    precio = Number(valores[3]) || 0;
-    monto = precio;
+    precio = Number(valores[3]) || Number(valores[2]) || 0;
+    monto = Number(valores[3]) !== 0 && !isNaN(Number(valores[3])) ? Number(valores[3]) : (Number(valores[2]) || 0);
+    if (!producto && detalle) {
+      producto = detalle;
+    }
   } else if (hoja === 'Vencidos') {
-    // [fecha, cantidad, producto, precioCompra, precioVenta, perdida]
-    cantidad = Number(valores[1]) || 0;
-    producto = String(valores[2] || '').trim();
-    precioCompra = Number(valores[3]) || 0;
-    precioVenta = Number(valores[4]) || 0;
+    const val1 = valores[1];
+    const val2 = valores[2];
+    const val3 = valores[3];
+    const val4 = valores[4];
+    const val5 = valores[5];
+
+    const isVal1Num = val1 !== undefined && val1 !== '' && !isNaN(Number(val1));
+    const isVal2Num = val2 !== undefined && val2 !== '' && !isNaN(Number(val2));
+
+    if (isVal1Num && !isVal2Num) {
+      cantidad = Number(val1) || 1;
+      producto = String(val2 || '').trim();
+      precioCompra = Number(val3) || 0;
+      precioVenta = Number(val4) || 0;
+    } else if (!isVal1Num && isVal2Num) {
+      producto = String(val1 || '').trim();
+      cantidad = Number(val2) || 1;
+      precioCompra = Number(val3) || 0;
+      precioVenta = Number(val4) || 0;
+    } else if (!isVal1Num && !isVal2Num) {
+      producto = String(val1 || val2 || '').trim();
+      cantidad = Number(val2) || 1;
+      precioCompra = Number(val3) || 0;
+      precioVenta = Number(val4) || 0;
+    } else {
+      cantidad = Number(val1) || 1;
+      producto = String(val2 || '').trim();
+      precioCompra = Number(val3) || 0;
+      precioVenta = Number(val4) || 0;
+    }
+
     detalle = 'Vencido';
-    const computedPerdida = (precioCompra - precioVenta) * cantidad;
-    monto = valores[5] !== undefined && valores[5] !== '' ? Number(valores[5]) || 0 : computedPerdida;
-  } else if (hoja === 'Compra bienes y Construccion') {
-    // [fecha, producto, detalle, precio]
-    producto = String(valores[1] || '').trim();
-    detalle = String(valores[2] || '').trim();
-    precio = Number(valores[3]) || 0;
-    monto = precio;
+    const computedPerdida = Math.abs((precioCompra - precioVenta) * cantidad);
+
+    if (val5 !== undefined && val5 !== '' && !isNaN(Number(val5))) {
+      monto = Math.abs(Number(val5));
+    } else if (val3 !== undefined && val3 !== '' && !isNaN(Number(val3)) && (val4 === undefined || val4 === '')) {
+      monto = Math.abs(Number(val3));
+    } else {
+      monto = computedPerdida !== 0 ? computedPerdida : Math.abs(Number(val3) || 0);
+    }
+    if (monto === 0 && val3 !== undefined && !isNaN(Number(val3))) {
+      monto = Math.abs(Number(val3) || 0);
+    }
   } else if (hoja === 'Bonificaciones') {
-    // [fecha, detalle, monto]
     producto = String(valores[1] || '').trim();
     detalle = String(valores[1] || '').trim();
-    monto = Number(valores[2]) || 0;
+    monto = Number(valores[2]) || Number(valores[1]) || 0;
   } else {
     producto = String(valores[1] || '').trim();
     detalle = String(valores[2] || '').trim();
     monto = Number(valores[3]) || 0;
+  }
+
+  if (!producto) {
+    producto = hoja === 'Vencidos' ? 'Vencido' : (hoja === 'Bonificaciones' ? (detalle || 'Bonificación') : 'Sin descripción');
   }
 
   // Filtrar filas totalmente vacías
@@ -394,82 +441,51 @@ export async function getAllSheetRecords(token?: string | null): Promise<{
   registros: RegistroItem[];
   errors: Record<string, string>;
 }> {
-  const promises = SHEETS_CONFIG.map(async ({ hoja, origen }) => {
+  const allItems: RegistroItem[] = [];
+  const errors: Record<string, string> = {};
+  const seenSheetRows = new Set<string>();
+
+  const pushItem = (item: RegistroItem) => {
+    if (item.row && item.row > 0) {
+      const rowKey = `${item.hoja}-${item.row}`;
+      if (!seenSheetRows.has(rowKey)) {
+        seenSheetRows.add(rowKey);
+        allItems.push(item);
+      }
+    } else {
+      allItems.push(item);
+    }
+  };
+
+  const sheetPromises = SHEETS_CONFIG.map(async ({ hoja, origen }) => {
     try {
       const res = await getSheetRecords(hoja, token);
-      if (res.success && Array.isArray(res.registros)) {
-        const items = res.registros
-          .map((r) => parseSheetRow(hoja, origen, r.row, r.valores))
-          .filter((it): it is RegistroItem => it !== null);
-        return { hoja, success: true, items, error: undefined };
-      } else {
-        return { hoja, success: false, items: [], error: res.error || 'Error al obtener hoja' };
+      const rawList =
+        (res && typeof res === 'object' && 'registros' in res && Array.isArray((res as any).registros)) ? (res as any).registros :
+        (res && typeof res === 'object' && 'data' in res && Array.isArray((res as any).data)) ? (res as any).data :
+        (res && typeof res === 'object' && 'rows' in res && Array.isArray((res as any).rows)) ? (res as any).rows :
+        (Array.isArray(res) ? res : []);
+
+      if (rawList.length > 0) {
+        rawList.forEach((r: any, idx: number) => {
+          const rowNum = Number(r?.row ?? r?.rowIndex ?? r?.[0] ?? (idx + 1));
+          const valores = Array.isArray(r) ? r : (r?.valores || r?.values || r?.data || Object.values(r));
+          if (Array.isArray(valores) && valores.length > 0) {
+            const item = parseSheetRow(hoja, origen, rowNum, valores);
+            if (item) {
+              pushItem(item);
+            }
+          }
+        });
+      } else if (res && typeof res === 'object' && (res as any).error) {
+        errors[hoja] = (res as any).error;
       }
     } catch (e: unknown) {
-      return {
-        hoja,
-        success: false,
-        items: [],
-        error: e instanceof Error ? e.message : 'Error de red',
-      };
+      errors[hoja] = e instanceof Error ? e.message : 'Error de red';
     }
   });
 
-  const results = await Promise.all(promises);
-  const allItems: RegistroItem[] = [];
-  const errors: Record<string, string> = {};
-
-  for (const r of results) {
-    if (r.success) {
-      allItems.push(...r.items);
-    } else if (r.error) {
-      errors[r.hoja] = r.error;
-    }
-  }
-
-  // Si records falló por sesión en todas las hojas (antes de actualizar Apps Script), usar fallback con getGastosReport + getBonificacionesReport
-  if (allItems.length === 0 && (errors['Retiro de inventario'] || errors['Gastos de Caja y Banco'])) {
-    try {
-      const [gastosRes, bonRes] = await Promise.allSettled([
-        getGastosReport(token || null),
-        getBonificacionesReport(token || null),
-      ]);
-      if (gastosRes.status === 'fulfilled' && gastosRes.value.success && Array.isArray(gastosRes.value.registros)) {
-        for (const g of gastosRes.value.registros) {
-          if (g.producto === 'PRODUCTO' || g.detalle === 'DETALLE' || g.fecha === '31/12/1969') continue;
-          allItems.push({
-            id: `${g.hoja}-${g.row}`,
-            hoja: g.hoja,
-            origen: g.hoja === 'Retiro de inventario' ? 'Inventario' : 'Efectivo y Banco',
-            row: g.row,
-            fecha: g.fecha,
-            producto: g.producto,
-            detalle: g.detalle,
-            cantidad: g.cantidad,
-            precio: g.precio,
-            monto: Number(g.monto) || 0,
-          });
-        }
-      }
-      if (bonRes.status === 'fulfilled' && bonRes.value.success && Array.isArray(bonRes.value.registros)) {
-        for (const b of bonRes.value.registros) {
-          if (b.detalle === 'DETALLE' || b.fecha === '31/12/1969') continue;
-          allItems.push({
-            id: `bon-${b.row}`,
-            hoja: b.hoja || 'Bonificaciones',
-            origen: 'Bonificaciones',
-            row: b.row,
-            fecha: b.fecha,
-            producto: b.producto || b.detalle,
-            detalle: b.detalle,
-            monto: Number(b.monto) || 0,
-          });
-        }
-      }
-    } catch {
-      // Ignorar fallback si falla
-    }
-  }
+  await Promise.allSettled(sheetPromises);
 
   return {
     success: allItems.length > 0 || Object.keys(errors).length === 0,

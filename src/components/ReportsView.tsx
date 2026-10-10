@@ -63,28 +63,58 @@ const ORIGEN_FILTERS: { id: 'todos' | RegistroOrigen; label: string; icon: React
   { id: 'Bonificaciones', label: 'Bonificaciones', icon: Sparkles },
 ];
 
-function parseRecordDate(fechaStr: string): { year: number; month: number; day: number } | null {
-  if (!fechaStr) return null;
-  const parts = String(fechaStr).trim().split(/[-/]/);
-  if (parts.length === 3) {
-    if (parts[0].length === 4) {
-      // YYYY-MM-DD
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10);
-      const day = parseInt(parts[2], 10);
-      if (!isNaN(year) && !isNaN(month)) return { year, month, day: isNaN(day) ? 1 : day };
-    } else {
-      // DD/MM/YYYY
-      const day = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10);
-      const year = parseInt(parts[2], 10);
-      if (!isNaN(year) && !isNaN(month)) return { year, month, day: isNaN(day) ? 1 : day };
+function parseRecordDate(fechaStr: string | number): { year: number; month: number; day: number } | null {
+  if (fechaStr === undefined || fechaStr === null || fechaStr === '') return null;
+  const trimmed = String(fechaStr).trim();
+
+  // Excel serial date (numeric string or number)
+  if (/^\d{4,6}$/.test(trimmed)) {
+    const serial = parseInt(trimmed, 10);
+    if (!isNaN(serial) && serial > 30000) {
+      const d = new Date(1899, 11, 30);
+      d.setDate(d.getDate() + serial);
+      if (!isNaN(d.getTime())) {
+        return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() };
+      }
     }
   }
-  const d = new Date(fechaStr);
-  if (!isNaN(d.getTime())) {
+
+  const cleanStr = trimmed.split('T')[0].split(' ')[0];
+  const parts = cleanStr.split(/[-/.]/);
+  if (parts.length === 3) {
+    const p0 = parseInt(parts[0], 10);
+    const p1 = parseInt(parts[1], 10);
+    const p2 = parseInt(parts[2], 10);
+
+    if (!isNaN(p0) && !isNaN(p1) && !isNaN(p2)) {
+      if (parts[0].length === 4) {
+        // YYYY-MM-DD
+        return { year: p0, month: p1, day: p2 };
+      } else if (parts[2].length === 4) {
+        // DD/MM/YYYY vs MM/DD/YYYY
+        if (p0 > 12 && p1 <= 12) {
+          // p0 cannot be month (>12), so p0 is day, p1 is month -> DD/MM/YYYY
+          return { year: p2, month: p1, day: p0 };
+        } else if (p1 > 12 && p0 <= 12) {
+          // p1 cannot be month (>12), so p1 is day, p0 is month -> MM/DD/YYYY
+          return { year: p2, month: p0, day: p1 };
+        } else {
+          // Default to DD/MM/YYYY in Bolivia/LatAm
+          return { year: p2, month: p1, day: p0 };
+        }
+      } else if (parts[2].length === 2) {
+        // YY format
+        const fullYear = p2 < 50 ? 2000 + p2 : 1900 + p2;
+        return { year: fullYear, month: p1, day: p0 };
+      }
+    }
+  }
+
+  const d = new Date(trimmed);
+  if (!isNaN(d.getTime()) && d.getFullYear() > 2000 && d.getFullYear() < 2100) {
     return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() };
   }
+
   return null;
 }
 
@@ -252,8 +282,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       if (timeB !== timeA) {
         return timeB - timeA;
       }
-      // Si tienen exactamente la misma fecha, desempatar por número de fila descendente
-      return (b.row || 0) - (a.row || 0);
+      return 0;
     });
   }, [records, selectedOrigen, periodo, selectedYear, selectedMonth, selectedDetalle, searchQuery]);
 
